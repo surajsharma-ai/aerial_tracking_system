@@ -1,0 +1,48 @@
+{
+    "simulation": {
+        "duration": 100.0,
+        "dt": 0.1,
+        "initial_position": [0, 0, 10000],
+        "initial_velocity": [300, 200, 50]
+    },
+    "sensors": {
+        "radar": {
+            "noise_std": 50.0,
+            "update_rate": 10.0,
+            "detection_prob": 0.98,
+            "max_range": 100000.0
+        },
+        "satellite": {
+            "noise_std": 100.0,
+            "update_rate": 1.0,
+            "detection_prob": 0.85,
+            "max_range": 500000.0
+        },
+        "thermal": {
+            "noise_std": 150.0,
+            "update_rate": 5.0,
+            "detection_prob": 0.75,
+            "max_range": 50000.0
+        }
+    },
+    "fusion": {
+        "process_noise": 10.0,
+        "initial_position_uncertainty": 1000.0
+    },
+    "model": {
+        "sequence_length": 20,
+        "prediction_horizon": 10,
+        "hidden_dim": 128,
+        "num_layers": 3,
+        "dropout": 0.2,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "num_epochs": 100
+    },
+    "training": {
+        "num_trajectories": 100,
+        "train_split": 0.8,
+        "early_stopping_patience": 15,
+        "random_seed": 42
+    }
+}

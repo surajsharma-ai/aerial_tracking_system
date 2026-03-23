@@ -1,0 +1,23 @@
+# Core dependencies (ESSENTIAL)
+numpy>=1.21.0
+pandas>=1.3.0
+matplotlib>=3.4.0
+scipy>=1.7.0
+
+# Machine Learning (ESSENTIAL)
+torch>=1.10.0
+scikit-learn>=0.24.0
+
+# Visualization (ESSENTIAL)
+plotly>=5.3.0
+seaborn>=0.11.0
+
+# Dashboard (ESSENTIAL)
+streamlit>=1.10.0
+
+# Utilities (ESSENTIAL)
+tqdm>=4.62.0
+joblib>=1.1.0
+
+# NOT NEEDED FOR THIS PROJECT:
+# jupyter>=1.0.0  ← SKIP THIS
