@@ -397,7 +397,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 MIT License
 
-Copyright (c) 2024 [Your Name]
+Copyright (c) 2026 suraj sharma
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -407,10 +407,9 @@ copies of the Software...
 👤 Author
 Your Name
 
-🔗 LinkedIn: linkedin.com/in/yourprofile
-🌐 Portfolio: yourportfolio.com
-📧 Email: your.email@example.com
-💻 GitHub: @yourusername
+🔗 LinkedIn: linkedin.com/in/suraj-kumar-sharma-80ab552bb
+📧 Email: modgilsooraj7@gmail.com
+💻 GitHub: @surajsharma-ai
 🙏 Acknowledgments
 Physics models based on aerospace tracking literature
 Sensor characteristics from public radar specifications
@@ -423,11 +422,11 @@ If you use this project in your research, please cite:
 
 
 @software{aerial_tracking_2024,
-  author = {Your Name},
-  title = {AI-Based Multi-Sensor Fusion for Aerial Tracking},
-  year = {2024},
-  url = {https://github.com/yourusername/aerial-tracking-system},
-  note = {Hybrid Physics + ML system achieving 60-78\% improvement}
+  author = Suraj Sharma,
+  title = AI-Based Multi-Sensor Fusion for Aerial Tracking,
+  year = 2026,
+  url = https://github.com/surajsharma-ai/aerial-tracking-system,
+  note = Hybrid Physics + ML system achieving 60-78\% improvement
 }
 ❓ FAQ
 Q: Why hybrid instead of pure ML?
@@ -481,7 +480,7 @@ Check the FAQ above
 Run verification: python verify_accuracy.py
 Check dependencies: pip install -r requirements.txt --upgrade
 Open an issue: GitHub Issues
-Email me: your.email@example.com
+Email me: modgilsooraj7@gmail.com
 Common Issues:
 
 Problem	Solution
