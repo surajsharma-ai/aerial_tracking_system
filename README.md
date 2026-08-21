@@ -57,6 +57,22 @@ streamlit run visualization/hybrid_dashboard.py
 ```
 The dashboard will open automatically in your browser at `http://localhost:8501`.
 
+## 📸 Screenshots
+
+**Dashboard Overview**
+![Dashboard Data](Images/dashboard_data.png)
+![Dashboard Graph](Images/dashboard_graph.png)
+
+**3D Trajectory Visualization**
+![3D Trajectory](Images/dashboard_3d.png)
+
+**Flight Animation**
+![Flight Animation](Images/drive_climb.png)
+
+**Error Analysis**
+![Error Analysis](Images/performance_analysis.png)
+![Error Analysis Data](Images/performance_data.png)
+
 ## 📊 Key Features
 
 1.  **Hybrid Intelligence Architecture:** Final Prediction = Physics Model + ML Correction. This ensures stability when sensors fail (physics fallback) and explainability, while remaining data-efficient.
