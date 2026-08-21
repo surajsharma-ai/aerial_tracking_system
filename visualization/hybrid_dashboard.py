@@ -1,6 +1,5 @@
 """
-hybrid_dashboard.py - Complete Dashboard with Working Flight Scenarios
-Fixed: Temporal smoothing for robust hybrid correction across all scenarios
+hybrid_dashboard.py - FINAL VERSION with Clear Metrics
 """
 
 import streamlit as st
@@ -22,7 +21,6 @@ from simulation.sensor_simulator import MultiSensorSimulator
 # ============================================================
 
 def expand_maneuvers(maneuvers, duration=5.0, dt=0.1):
-    """Expand maneuvers to last for specified duration."""
     expanded = []
     for start_time, mtype, intensity in maneuvers:
         for t in np.arange(start_time, start_time + duration, dt):
@@ -31,239 +29,171 @@ def expand_maneuvers(maneuvers, duration=5.0, dt=0.1):
 
 
 def generate_scenario_trajectory(scenario, duration=60.0, dt=0.1):
-    """Generate trajectory based on selected scenario."""
-
     if scenario == "Linear Flight":
         initial_pos = np.array([0.0, 0.0, 10000.0])
         initial_vel = np.array([300.0, 100.0, 0.0])
         maneuvers = []
-
     elif scenario == "High-Speed Turn":
         initial_pos = np.array([0.0, 0.0, 8000.0])
         initial_vel = np.array([400.0, 0.0, 0.0])
-        maneuvers = [
-            (10, 'turn', 2.0),
-            (25, 'turn', -1.8),
-            (40, 'turn', 1.5),
-        ]
-
+        maneuvers = [(10, 'turn', 2.0), (25, 'turn', -1.8), (40, 'turn', 1.5)]
     elif scenario == "Spiral Climb":
         initial_pos = np.array([0.0, 0.0, 5000.0])
         initial_vel = np.array([200.0, 200.0, 80.0])
-        maneuvers = [
-            (5, 'spiral', 1.5),
-            (15, 'spiral', 1.5),
-            (25, 'spiral', 1.5),
-            (35, 'spiral', 1.5),
-            (45, 'spiral', 1.5),
-        ]
-
+        maneuvers = [(5, 'spiral', 1.5), (15, 'spiral', 1.5), (25, 'spiral', 1.5),
+                     (35, 'spiral', 1.5), (45, 'spiral', 1.5)]
     elif scenario == "Evasive Maneuvers":
         initial_pos = np.array([0.0, 0.0, 12000.0])
         initial_vel = np.array([350.0, 150.0, -20.0])
-        maneuvers = [
-            (8, 'turn', 2.5),
-            (15, 'dive', 1.8),
-            (22, 'turn', -2.0),
-            (30, 'climb', 1.5),
-            (38, 'turn', 1.8),
-            (45, 'dive', 1.5),
-        ]
-
+        maneuvers = [(8, 'turn', 2.5), (15, 'dive', 1.8), (22, 'turn', -2.0),
+                     (30, 'climb', 1.5), (38, 'turn', 1.8), (45, 'dive', 1.5)]
     elif scenario == "Dive and Climb":
         initial_pos = np.array([0.0, 0.0, 15000.0])
         initial_vel = np.array([300.0, 100.0, -50.0])
-        maneuvers = [
-            (10, 'dive', 2.0),
-            (20, 'dive', 1.5),
-            (30, 'climb', 2.0),
-            (40, 'climb', 1.8),
-            (50, 'turn', 1.2),
-        ]
-
+        maneuvers = [(10, 'dive', 2.0), (20, 'dive', 1.5), (30, 'climb', 2.0),
+                     (40, 'climb', 1.8), (50, 'turn', 1.2)]
     elif scenario == "Figure-8 Pattern":
         initial_pos = np.array([0.0, 0.0, 9000.0])
         initial_vel = np.array([250.0, 0.0, 0.0])
-        maneuvers = [
-            (5, 'turn', 2.0),
-            (12, 'turn', 2.0),
-            (20, 'turn', -2.0),
-            (27, 'turn', -2.0),
-            (35, 'turn', 2.0),
-            (42, 'turn', 2.0),
-            (50, 'turn', -2.0),
-        ]
-
+        maneuvers = [(5, 'turn', 2.0), (12, 'turn', 2.0), (20, 'turn', -2.0),
+                     (27, 'turn', -2.0), (35, 'turn', 2.0), (42, 'turn', 2.0)]
     else:
         initial_pos = np.array([0.0, 0.0, 10000.0])
         initial_vel = np.array([300.0, 100.0, 0.0])
         maneuvers = []
 
-    expanded_maneuvers = expand_maneuvers(maneuvers, duration=5.0, dt=dt)
-
+    expanded = expand_maneuvers(maneuvers, duration=5.0, dt=dt)
     sim = HighSpeedObjectSimulator(initial_pos, initial_vel, dt)
-    sim.simulate_trajectory(duration, expanded_maneuvers)
-    tdf = sim.get_trajectory_dataframe()
+    sim.simulate_trajectory(duration, expanded)
+    return sim.get_trajectory_dataframe(), len(maneuvers)
 
-    return tdf, len(maneuvers)
-
-
-# ============================================================
-# WIND EFFECTS
-# ============================================================
 
 def add_wind_effects(tdf):
-    """Add realistic wind effects to trajectory."""
     tdf_wind = tdf.copy()
-
     for idx in range(len(tdf_wind)):
         t = tdf_wind.iloc[idx]['time']
         alt = tdf_wind.iloc[idx]['z']
         alt_factor = max(alt / 10000.0, 0.5)
-
         wind_x = 50 * np.sin(t / 10.0) * alt_factor
         wind_y = 40 * np.cos(t / 15.0) * alt_factor
         wind_z = 15 * np.sin(t / 8.0) * alt_factor
-
         if 20 < t < 30 or 45 < t < 55:
             wind_x += 30 * np.sin(t * 2) * alt_factor
             wind_y += 25 * np.cos(t * 3) * alt_factor
-
         tdf_wind.loc[tdf_wind.index[idx], 'x'] += wind_x
         tdf_wind.loc[tdf_wind.index[idx], 'y'] += wind_y
         tdf_wind.loc[tdf_wind.index[idx], 'z'] += wind_z
-
     return tdf_wind
 
 
 # ============================================================
-# PREDICTIONS - FIXED WITH TEMPORAL SMOOTHING
+# PREDICTIONS
 # ============================================================
 
 def compute_predictions(tdf, tdf_wind):
-    """
-    Compute physics and hybrid predictions.
-    
-    Key insight: sensor noise (~100m) is larger than wind displacement (~30-80m)
-    at individual timesteps. We MUST smooth over many measurements to reduce
-    noise below the wind signal before applying corrections.
-    
-    Method:
-    1. Physics prediction = clean trajectory (no wind)
-    2. Sensors observe wind-affected trajectory (truth + noise)
-    3. Residual = sensor - physics = wind + noise
-    4. Smooth residuals over ±2 seconds (~60 measurements) to average out noise
-    5. Apply smoothed residual as correction
-    """
-
     tdf = tdf.reset_index(drop=True)
     tdf_wind = tdf_wind.reset_index(drop=True)
-
+    
     n_points = min(len(tdf), len(tdf_wind))
     tdf = tdf.iloc[:n_points].copy()
     tdf_wind = tdf_wind.iloc[:n_points].copy()
-
-    # Generate sensor measurements of wind-affected trajectory
+    
     sensor_sim = MultiSensorSimulator()
     mdf = sensor_sim.generate_sensor_measurements(tdf_wind)
-
+    
     warmup = 5
-
-    # Physics = clean trajectory positions (what physics predicts without wind)
-    physics_preds = tdf[['x', 'y', 'z']].values[warmup:].astype(float).copy()
-
-    # Truth = wind-affected positions
-    true_wind = tdf_wind[['x', 'y', 'z']].values[warmup:].astype(float).copy()
-
-    # Strict length matching
+    
+    physics_preds = tdf[['x', 'y', 'z']].values[warmup:].astype(float)
+    true_wind = tdf_wind[['x', 'y', 'z']].values[warmup:].astype(float)
+    
     min_len = min(len(physics_preds), len(true_wind))
-    physics_preds = physics_preds[:min_len]
-    true_wind = true_wind[:min_len]
-
-    start_time = float(tdf_wind.iloc[warmup]['time'])
-
-    # --------------------------------------------------------
-    # STEP 1: Precompute residuals from ALL detected measurements
-    # residual = sensor_measurement - physics_prediction = wind + noise
-    # --------------------------------------------------------
+    physics_preds = physics_preds[:min_len].copy()
+    true_wind = true_wind[:min_len].copy()
+    
     detected = mdf[mdf['detected'] == True].copy()
-    det_times = detected['time'].values.astype(float)
-    det_meas = detected[['x_measured', 'y_measured', 'z_measured']].values.astype(float)
-
-    # Map each measurement time to nearest prediction index
-    det_idx = np.round((det_times - start_time) / 0.1).astype(int)
-
-    # Keep only valid indices
-    valid = (det_idx >= 0) & (det_idx < min_len)
-    det_idx = det_idx[valid]
-    det_meas = det_meas[valid]
-
-    # Compute residuals: measurement - physics = wind + noise
-    det_residuals = det_meas - physics_preds[det_idx]
-
-    # Filter extreme outlier residuals
-    res_mag = np.linalg.norm(det_residuals, axis=1)
-    valid2 = res_mag < 1000
-    det_idx = det_idx[valid2]
-    det_residuals = det_residuals[valid2]
-
-    # --------------------------------------------------------
-    # STEP 2: For each timestep, compute smoothed residual
-    # by averaging nearby residuals with Gaussian weighting.
-    # This reduces sensor noise while preserving wind signal.
-    #
-    # With ±2 seconds (±20 steps):
-    #   ~60 measurements available (radar@10Hz + thermal@5Hz + sat@1Hz)
-    #   noise reduction factor = 1/sqrt(60) ≈ 0.13
-    #   100m noise → ~13m after smoothing
-    #   Wind signal (30-200m) preserved
-    # --------------------------------------------------------
+    
+    if len(detected) == 0:
+        physics_errors = np.linalg.norm(physics_preds - true_wind, axis=1)
+        return {
+            'physics_preds': physics_preds,
+            'hybrid_preds': physics_preds.copy(),
+            'true_wind': true_wind,
+            'physics_rmse': np.sqrt(np.mean(physics_errors**2)),
+            'hybrid_rmse': np.sqrt(np.mean(physics_errors**2)),
+            'improvement': 0.0,
+            'physics_errors': physics_errors,
+            'hybrid_errors': physics_errors,
+            'corrections': 0
+        }
+    
+    start_time = float(tdf_wind.iloc[warmup]['time'])
+    dt = 0.1
+    
+    meas_times = detected['time'].values.astype(float)
+    meas_x = detected['x_measured'].values.astype(float)
+    meas_y = detected['y_measured'].values.astype(float)
+    meas_z = detected['z_measured'].values.astype(float)
+    
+    meas_indices = np.round((meas_times - start_time) / dt).astype(int)
+    
+    valid_mask = (meas_indices >= 0) & (meas_indices < min_len)
+    meas_indices = meas_indices[valid_mask]
+    meas_x = meas_x[valid_mask]
+    meas_y = meas_y[valid_mask]
+    meas_z = meas_z[valid_mask]
+    
+    res_x = meas_x - physics_preds[meas_indices, 0]
+    res_y = meas_y - physics_preds[meas_indices, 1]
+    res_z = meas_z - physics_preds[meas_indices, 2]
+    
+    res_mag = np.sqrt(res_x**2 + res_y**2 + res_z**2)
+    valid_res = res_mag < 500
+    
+    meas_indices = meas_indices[valid_res]
+    res_x = res_x[valid_res]
+    res_y = res_y[valid_res]
+    res_z = res_z[valid_res]
+    
     hybrid_preds = physics_preds.copy()
     corrections = 0
-    smooth_steps = 20  # ±2 seconds at dt=0.1
-
+    window = 20
+    
     for i in range(min_len):
-        # Find all residuals within ±2 seconds of this timestep
-        mask = np.abs(det_idx - i) <= smooth_steps
-        n_nearby = int(np.sum(mask))
-
-        if n_nearby >= 8:
-            nearby_res = det_residuals[mask]
-            distances = np.abs(det_idx[mask] - i).astype(float) + 0.1
-
-            # Gaussian weighting: closer measurements get higher weight
-            sigma = smooth_steps / 2.0
-            weights = np.exp(-0.5 * (distances / sigma) ** 2)
+        distances = np.abs(meas_indices - i)
+        nearby_mask = distances <= window
+        n_nearby = np.sum(nearby_mask)
+        
+        if n_nearby >= 5:
+            nearby_res_x = res_x[nearby_mask]
+            nearby_res_y = res_y[nearby_mask]
+            nearby_res_z = res_z[nearby_mask]
+            nearby_dist = distances[nearby_mask].astype(float)
+            
+            sigma = window / 2.0
+            weights = np.exp(-0.5 * (nearby_dist / sigma) ** 2)
             weights = weights / weights.sum()
-
-            # Smoothed residual ≈ wind displacement (noise averaged out)
-            smoothed_residual = np.average(nearby_res, axis=0, weights=weights)
-
-            # Adaptive correction weight based on sample count
-            # More samples = more confidence = higher weight
-            correction_weight = min(0.85, n_nearby / 30.0)
-
-            # Apply correction
-            correction = smoothed_residual * correction_weight
-            correction = np.clip(correction, -500, 500)
-
-            hybrid_preds[i] = physics_preds[i] + correction
+            
+            avg_res_x = np.sum(weights * nearby_res_x)
+            avg_res_y = np.sum(weights * nearby_res_y)
+            avg_res_z = np.sum(weights * nearby_res_z)
+            
+            confidence = min(1.0, n_nearby / 40.0)
+            correction_weight = 0.8 * confidence
+            
+            hybrid_preds[i, 0] = physics_preds[i, 0] + avg_res_x * correction_weight
+            hybrid_preds[i, 1] = physics_preds[i, 1] + avg_res_y * correction_weight
+            hybrid_preds[i, 2] = physics_preds[i, 2] + avg_res_z * correction_weight
+            
             corrections += 1
-
-    # --------------------------------------------------------
-    # STEP 3: Compute errors
-    # --------------------------------------------------------
+    
     physics_errors = np.linalg.norm(physics_preds - true_wind, axis=1)
     hybrid_errors = np.linalg.norm(hybrid_preds - true_wind, axis=1)
-
-    physics_rmse = np.sqrt(np.mean(physics_errors ** 2))
-    hybrid_rmse = np.sqrt(np.mean(hybrid_errors ** 2))
-
-    if physics_rmse > 0:
-        improvement = ((physics_rmse - hybrid_rmse) / physics_rmse) * 100
-    else:
-        improvement = 0.0
-
+    
+    physics_rmse = np.sqrt(np.mean(physics_errors**2))
+    hybrid_rmse = np.sqrt(np.mean(hybrid_errors**2))
+    
+    improvement = ((physics_rmse - hybrid_rmse) / physics_rmse * 100) if physics_rmse > 0 else 0.0
+    
     return {
         'physics_preds': physics_preds,
         'hybrid_preds': hybrid_preds,
@@ -278,499 +208,367 @@ def compute_predictions(tdf, tdf_wind):
 
 
 # ============================================================
-# 3D TRAJECTORY PLOT
+# VISUALIZATIONS
 # ============================================================
 
 def create_3d_plot(tdf_wind, results, scenario):
-    """Create clear 3D trajectory plot."""
-
-    step = max(1, len(tdf_wind) // 200)
-    x = tdf_wind['x'].values[::step]
-    y = tdf_wind['y'].values[::step]
-    z = tdf_wind['z'].values[::step]
-
-    p_step = max(1, len(results['physics_preds']) // 200)
-    px = results['physics_preds'][::p_step, 0]
-    py = results['physics_preds'][::p_step, 1]
-    pz = results['physics_preds'][::p_step, 2]
-
-    hx = results['hybrid_preds'][::p_step, 0]
-    hy = results['hybrid_preds'][::p_step, 1]
-    hz = results['hybrid_preds'][::p_step, 2]
-
+    step = max(1, len(results['true_wind']) // 150)
+    
+    ax = results['true_wind'][::step, 0]
+    ay = results['true_wind'][::step, 1]
+    az = results['true_wind'][::step, 2]
+    px = results['physics_preds'][::step, 0]
+    py = results['physics_preds'][::step, 1]
+    pz = results['physics_preds'][::step, 2]
+    hx = results['hybrid_preds'][::step, 0]
+    hy = results['hybrid_preds'][::step, 1]
+    hz = results['hybrid_preds'][::step, 2]
+    
+    n = len(ax)
     fig = go.Figure()
-
-    # Actual trajectory (with wind)
-    fig.add_trace(go.Scatter3d(
-        x=x, y=y, z=z,
-        mode='lines', name='Actual (with wind)',
-        line=dict(color='lime', width=7)
-    ))
-
-    # Physics prediction (no wind)
-    fig.add_trace(go.Scatter3d(
-        x=px, y=py, z=pz,
-        mode='lines',
-        name=f'Physics (RMSE: {results["physics_rmse"]:.1f}m)',
-        line=dict(color='red', width=4, dash='dash')
-    ))
-
-    # Hybrid prediction
-    fig.add_trace(go.Scatter3d(
-        x=hx, y=hy, z=hz,
-        mode='lines',
-        name=f'Hybrid (RMSE: {results["hybrid_rmse"]:.1f}m)',
-        line=dict(color='dodgerblue', width=4)
-    ))
-
-    # Start marker
-    fig.add_trace(go.Scatter3d(
-        x=[x[0]], y=[y[0]], z=[z[0]],
-        mode='markers+text', name='Start',
-        marker=dict(size=10, color='lime', symbol='diamond'),
-        text=['START'], textposition='top center',
-        textfont=dict(size=12, color='white')
-    ))
-
-    # End marker
-    fig.add_trace(go.Scatter3d(
-        x=[x[-1]], y=[y[-1]], z=[z[-1]],
-        mode='markers+text', name='End',
-        marker=dict(size=10, color='orangered', symbol='square'),
-        text=['END'], textposition='top center',
-        textfont=dict(size=12, color='white')
-    ))
-
-    # Axis ranges
-    all_x = np.concatenate([x, px, hx])
-    all_y = np.concatenate([y, py, hy])
-    all_z = np.concatenate([z, pz, hz])
-
-    x_pad = max((all_x.max() - all_x.min()) * 0.1, 100)
-    y_pad = max((all_y.max() - all_y.min()) * 0.1, 100)
-    z_pad = max((all_z.max() - all_z.min()) * 0.1, 100)
-
+    
+    fig.add_trace(go.Scatter3d(x=ax, y=ay, z=az, mode='lines', name='✈️ Actual',
+                               line=dict(color='lime', width=8)))
+    fig.add_trace(go.Scatter3d(x=px, y=py, z=pz, mode='lines',
+                               name=f'🔴 Physics ({results["physics_rmse"]:.1f}m)',
+                               line=dict(color='red', width=5, dash='dash')))
+    fig.add_trace(go.Scatter3d(x=hx, y=hy, z=hz, mode='lines',
+                               name=f'🔵 Hybrid ({results["hybrid_rmse"]:.1f}m)',
+                               line=dict(color='dodgerblue', width=5)))
+    
+    for i in range(0, n, max(1, n//12)):
+        fig.add_trace(go.Scatter3d(x=[px[i], ax[i]], y=[py[i], ay[i]], z=[pz[i], az[i]],
+                                   mode='lines', line=dict(color='rgba(255,100,100,0.6)', width=3),
+                                   showlegend=(i==0), name='Physics Err' if i==0 else None))
+        fig.add_trace(go.Scatter3d(x=[hx[i], ax[i]], y=[hy[i], ay[i]], z=[hz[i], az[i]],
+                                   mode='lines', line=dict(color='rgba(100,150,255,0.6)', width=3),
+                                   showlegend=(i==0), name='Hybrid Err' if i==0 else None))
+    
+    fig.add_trace(go.Scatter3d(x=[ax[0]], y=[ay[0]], z=[az[0]], mode='markers+text',
+                               marker=dict(size=12, color='lime'), text=['START'],
+                               textposition='top center', name='Start'))
+    fig.add_trace(go.Scatter3d(x=[ax[-1]], y=[ay[-1]], z=[az[-1]], mode='markers+text',
+                               marker=dict(size=12, color='red'), text=['END'],
+                               textposition='top center', name='End'))
+    
+    all_x = np.concatenate([ax, px, hx])
+    all_y = np.concatenate([ay, py, hy])
+    all_z = np.concatenate([az, pz, hz])
+    pad = 0.15
+    
     fig.update_layout(
-        title=dict(text=f'🛩️ {scenario}', font=dict(size=22, color='white'), x=0.5),
+        title=f'🛩️ {scenario} | Physics: {results["physics_rmse"]:.1f}m → Hybrid: {results["hybrid_rmse"]:.1f}m ({results["improvement"]:+.1f}%)',
         scene=dict(
-            xaxis=dict(title='X (m)', range=[all_x.min() - x_pad, all_x.max() + x_pad],
-                       backgroundcolor='rgb(20,20,40)', gridcolor='gray', showbackground=True),
-            yaxis=dict(title='Y (m)', range=[all_y.min() - y_pad, all_y.max() + y_pad],
-                       backgroundcolor='rgb(20,40,20)', gridcolor='gray', showbackground=True),
-            zaxis=dict(title='Altitude (m)', range=[all_z.min() - z_pad, all_z.max() + z_pad],
-                       backgroundcolor='rgb(40,20,20)', gridcolor='gray', showbackground=True),
+            xaxis=dict(range=[all_x.min() - abs(all_x.max()-all_x.min())*pad, 
+                              all_x.max() + abs(all_x.max()-all_x.min())*pad]),
+            yaxis=dict(range=[all_y.min() - abs(all_y.max()-all_y.min())*pad, 
+                              all_y.max() + abs(all_y.max()-all_y.min())*pad]),
+            zaxis=dict(range=[all_z.min() - abs(all_z.max()-all_z.min())*pad, 
+                              all_z.max() + abs(all_z.max()-all_z.min())*pad]),
             camera=dict(eye=dict(x=1.8, y=1.8, z=1.0)),
             aspectmode='manual', aspectratio=dict(x=1, y=1, z=0.5)
         ),
-        paper_bgcolor='rgb(10,10,30)', plot_bgcolor='rgb(10,10,30)',
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01,
-                    bgcolor='rgba(0,0,0,0.7)', font=dict(color='white', size=12)),
-        height=650, margin=dict(l=0, r=0, t=60, b=0)
+        height=650, template='plotly_dark'
     )
-
     return fig
 
-
-# ============================================================
-# 2D TOP-DOWN VIEW
-# ============================================================
-
-def create_2d_topdown(tdf_wind, results, scenario):
-    """Create 2D top-down view."""
-
-    step = max(1, len(tdf_wind) // 300)
-    x = tdf_wind['x'].values[::step]
-    y = tdf_wind['y'].values[::step]
-
-    p_step = max(1, len(results['hybrid_preds']) // 300)
-    hx = results['hybrid_preds'][::p_step, 0]
-    hy = results['hybrid_preds'][::p_step, 1]
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatter(
-        x=x, y=y, mode='lines+markers',
-        name='Actual Path', line=dict(color='lime', width=3), marker=dict(size=3)
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=hx, y=hy, mode='lines',
-        name='Hybrid Prediction', line=dict(color='dodgerblue', width=2, dash='dash')
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=[x[0]], y=[y[0]], mode='markers+text', name='Start',
-        marker=dict(size=14, color='lime', symbol='star'),
-        text=['START'], textposition='top center'
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=[x[-1]], y=[y[-1]], mode='markers+text', name='End',
-        marker=dict(size=14, color='orangered', symbol='square'),
-        text=['END'], textposition='top center'
-    ))
-
-    fig.update_layout(
-        title=f'📍 {scenario} - Top Down View',
-        xaxis_title='X (m)', yaxis_title='Y (m)',
-        height=450, template='plotly_dark',
-        legend=dict(x=0.01, y=0.99)
-    )
-
-    fig.update_yaxes(scaleanchor="x", scaleratio=1)
-    return fig
-
-
-# ============================================================
-# ALTITUDE PROFILE
-# ============================================================
-
-def create_altitude_profile(tdf_wind, scenario):
-    """Create altitude over time."""
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=tdf_wind['time'], y=tdf_wind['z'],
-        mode='lines', name='Altitude',
-        line=dict(color='cyan', width=3),
-        fill='tozeroy', fillcolor='rgba(0,255,255,0.15)'
-    ))
-
-    fig.update_layout(
-        title=f'📈 {scenario} - Altitude Profile',
-        xaxis_title='Time (s)', yaxis_title='Altitude (m)',
-        height=300, template='plotly_dark'
-    )
-
-    return fig
-
-
-# ============================================================
-# ANIMATION
-# ============================================================
 
 def create_animation(tdf_wind, results, scenario):
-    """Create simple clean flight animation."""
-
-    total = len(tdf_wind)
-    step = max(1, total // 120)
-
-    x = tdf_wind['x'].values[::step]
-    y = tdf_wind['y'].values[::step]
-    z = tdf_wind['z'].values[::step]
-    times = tdf_wind['time'].values[::step]
-
-    n = len(x)
-    trail_len = 30
-
+    step = max(1, len(results['true_wind']) // 100)
+    
+    ax = results['true_wind'][::step, 0]
+    ay = results['true_wind'][::step, 1]
+    az = results['true_wind'][::step, 2]
+    px = results['physics_preds'][::step, 0]
+    py = results['physics_preds'][::step, 1]
+    pz = results['physics_preds'][::step, 2]
+    hx = results['hybrid_preds'][::step, 0]
+    hy = results['hybrid_preds'][::step, 1]
+    hz = results['hybrid_preds'][::step, 2]
+    pe = results['physics_errors'][::step]
+    he = results['hybrid_errors'][::step]
+    times = tdf_wind['time'].values[5::step]
+    
+    n = min(len(ax), len(px), len(times), len(pe), len(he))
+    trail = 20
+    
     frames = []
     for i in range(5, n):
-        ts = max(0, i - trail_len)
-        frame = go.Frame(
-            data=[
-                go.Scatter3d(
-                    x=x[ts:i + 1], y=y[ts:i + 1], z=z[ts:i + 1],
-                    mode='lines', line=dict(color='lime', width=6), name='Trail'
-                ),
-                go.Scatter3d(
-                    x=[x[i]], y=[y[i]], z=[z[i]],
-                    mode='markers', name='Aircraft',
-                    marker=dict(size=12, color='yellow', symbol='diamond',
-                               line=dict(color='red', width=2))
-                ),
-                go.Scatter3d(
-                    x=[x[0]], y=[y[0]], z=[z[0]],
-                    mode='markers', name='Start',
-                    marker=dict(size=8, color='lime', symbol='circle')
-                )
-            ],
-            name=str(i)
-        )
-        frames.append(frame)
-
-    fig = go.Figure(
-        data=[
-            go.Scatter3d(
-                x=x[:5], y=y[:5], z=z[:5],
-                mode='lines', line=dict(color='lime', width=6), name='Trail'
-            ),
-            go.Scatter3d(
-                x=[x[4]], y=[y[4]], z=[z[4]],
-                mode='markers', name='Aircraft',
-                marker=dict(size=12, color='yellow', symbol='diamond',
-                           line=dict(color='red', width=2))
-            ),
-            go.Scatter3d(
-                x=[x[0]], y=[y[0]], z=[z[0]],
-                mode='markers', name='Start',
-                marker=dict(size=8, color='lime', symbol='circle')
-            )
-        ],
-        frames=frames
-    )
-
-    x_pad = max((x.max() - x.min()) * 0.1, 100)
-    y_pad = max((y.max() - y.min()) * 0.1, 100)
-    z_pad = max((z.max() - z.min()) * 0.1, 100)
-
-    slider_frames = frames[::3] if len(frames) > 30 else frames
+        s = max(0, i - trail)
+        frames.append(go.Frame(data=[
+            go.Scatter3d(x=ax[s:i+1], y=ay[s:i+1], z=az[s:i+1], mode='lines',
+                        line=dict(color='lime', width=6), name='Actual'),
+            go.Scatter3d(x=px[s:i+1], y=py[s:i+1], z=pz[s:i+1], mode='lines',
+                        line=dict(color='red', width=4, dash='dash'), name='Physics'),
+            go.Scatter3d(x=hx[s:i+1], y=hy[s:i+1], z=hz[s:i+1], mode='lines',
+                        line=dict(color='dodgerblue', width=4), name='Hybrid'),
+            go.Scatter3d(x=[ax[i]], y=[ay[i]], z=[az[i]], mode='markers',
+                        marker=dict(size=12, color='yellow', symbol='diamond'), name='Aircraft'),
+            go.Scatter3d(x=[px[i], ax[i]], y=[py[i], ay[i]], z=[pz[i], az[i]], mode='lines',
+                        line=dict(color='red', width=4), name=f'P:{pe[i]:.0f}m'),
+            go.Scatter3d(x=[hx[i], ax[i]], y=[hy[i], ay[i]], z=[hz[i], az[i]], mode='lines',
+                        line=dict(color='dodgerblue', width=4), name=f'H:{he[i]:.0f}m'),
+        ], name=str(i)))
+    
+    initial_data = frames[0].data if frames else []
+    fig = go.Figure(data=initial_data, frames=frames)
+    
+    all_x = np.concatenate([ax, px, hx])
+    all_y = np.concatenate([ay, py, hy])
+    all_z = np.concatenate([az, pz, hz])
+    pad = 0.15
+    
     slider_steps = []
-    for f in slider_frames:
+    for f in frames[::3]:
         fi = int(f.name)
-        label = f'{times[fi]:.0f}s' if fi < len(times) else ''
+        t_val = times[fi] if fi < len(times) else 0
         slider_steps.append(dict(
             args=[[f.name], dict(frame=dict(duration=0, redraw=True), mode='immediate')],
-            label=label, method='animate'
+            label=f'{t_val:.0f}s', method='animate'
         ))
-
+    
     fig.update_layout(
-        title=dict(text=f'🎬 {scenario}', font=dict(size=22, color='white'), x=0.5),
+        title=f'🎬 {scenario} | 🔴 Red = Physics Error | 🔵 Blue = Hybrid Error',
         scene=dict(
-            xaxis=dict(title='X (m)', range=[x.min() - x_pad, x.max() + x_pad],
-                       backgroundcolor='rgb(20,20,40)', gridcolor='gray'),
-            yaxis=dict(title='Y (m)', range=[y.min() - y_pad, y.max() + y_pad],
-                       backgroundcolor='rgb(20,40,20)', gridcolor='gray'),
-            zaxis=dict(title='Altitude (m)', range=[z.min() - z_pad, z.max() + z_pad],
-                       backgroundcolor='rgb(40,20,20)', gridcolor='gray'),
+            xaxis=dict(range=[all_x.min() - abs(all_x.max()-all_x.min())*pad, 
+                              all_x.max() + abs(all_x.max()-all_x.min())*pad]),
+            yaxis=dict(range=[all_y.min() - abs(all_y.max()-all_y.min())*pad, 
+                              all_y.max() + abs(all_y.max()-all_y.min())*pad]),
+            zaxis=dict(range=[all_z.min() - abs(all_z.max()-all_z.min())*pad, 
+                              all_z.max() + abs(all_z.max()-all_z.min())*pad]),
             camera=dict(eye=dict(x=1.5, y=1.5, z=1.0)),
-            aspectmode='manual', aspectratio=dict(x=1, y=1, z=0.5)
         ),
-        paper_bgcolor='rgb(10,10,30)', plot_bgcolor='rgb(10,10,30)',
-        updatemenus=[dict(
-            type='buttons', showactive=False, y=0.05, x=0.05,
-            xanchor='left', yanchor='bottom',
-            bgcolor='rgba(50,50,50,0.9)', font=dict(color='white', size=14),
-            buttons=[
-                dict(label='  ▶ Play  ', method='animate',
-                     args=[None, {'frame': {'duration': 60, 'redraw': True},
-                                  'fromcurrent': True, 'transition': {'duration': 0}}]),
-                dict(label='  ⏸ Pause  ', method='animate',
-                     args=[[None], {'frame': {'duration': 0, 'redraw': False},
-                                    'mode': 'immediate'}])
-            ]
-        )],
-        sliders=[dict(
-            active=0, yanchor='top', xanchor='left',
-            currentvalue=dict(prefix='Time: ', visible=True, font=dict(color='white', size=14)),
-            transition=dict(duration=0), pad=dict(b=10, t=60),
-            len=0.85, x=0.1, y=0, bgcolor='rgba(50,50,50,0.8)',
-            steps=slider_steps
-        )],
-        height=650, margin=dict(l=0, r=0, t=60, b=80),
-        legend=dict(bgcolor='rgba(0,0,0,0.7)', font=dict(color='white'))
+        updatemenus=[dict(type='buttons', y=0.05, x=0.05, buttons=[
+            dict(label='▶ Play', method='animate',
+                 args=[None, {'frame': {'duration': 80}, 'fromcurrent': True}]),
+            dict(label='⏸ Pause', method='animate',
+                 args=[[None], {'frame': {'duration': 0}, 'mode': 'immediate'}])
+        ])],
+        sliders=[dict(steps=slider_steps, len=0.85, x=0.1)] if slider_steps else [],
+        height=650, template='plotly_dark'
     )
-
     return fig
 
 
-# ============================================================
-# ERROR ANALYSIS
-# ============================================================
+def create_2d_plot(results, scenario):
+    step = max(1, len(results['true_wind']) // 200)
+    ax = results['true_wind'][::step, 0]
+    ay = results['true_wind'][::step, 1]
+    px = results['physics_preds'][::step, 0]
+    py = results['physics_preds'][::step, 1]
+    hx = results['hybrid_preds'][::step, 0]
+    hy = results['hybrid_preds'][::step, 1]
+    
+    fig = go.Figure()
+    n = len(ax)
+    for i in range(0, n, max(1, n//10)):
+        fig.add_trace(go.Scatter(x=[px[i], ax[i]], y=[py[i], ay[i]], mode='lines',
+                                 line=dict(color='rgba(255,100,100,0.5)', width=2),
+                                 showlegend=(i==0), name='P.Err' if i==0 else None))
+        fig.add_trace(go.Scatter(x=[hx[i], ax[i]], y=[hy[i], ay[i]], mode='lines',
+                                 line=dict(color='rgba(100,150,255,0.5)', width=2),
+                                 showlegend=(i==0), name='H.Err' if i==0 else None))
+    
+    fig.add_trace(go.Scatter(x=ax, y=ay, mode='lines', name='Actual', line=dict(color='lime', width=4)))
+    fig.add_trace(go.Scatter(x=px, y=py, mode='lines', name='Physics', line=dict(color='red', width=2, dash='dash')))
+    fig.add_trace(go.Scatter(x=hx, y=hy, mode='lines', name='Hybrid', line=dict(color='dodgerblue', width=2)))
+    
+    fig.update_layout(title=f'📍 {scenario} Top-Down', height=400, template='plotly_dark')
+    fig.update_yaxes(scaleanchor="x")
+    return fig
+
 
 def create_error_plots(results):
-    """Create error analysis plots."""
-
     n = len(results['physics_errors'])
-    time = np.arange(n) * 0.1
-
-    fig = make_subplots(
-        rows=2, cols=2,
-        subplot_titles=('Error Over Time', 'Error Distribution',
-                        'Cumulative Error', 'Improvement Over Time')
-    )
-
-    # Error over time
-    fig.add_trace(go.Scatter(x=time, y=results['physics_errors'],
-                             name='Physics', line=dict(color='red', width=2)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=time, y=results['hybrid_errors'],
-                             name='Hybrid', line=dict(color='dodgerblue', width=2)), row=1, col=1)
-
-    # Distribution
-    fig.add_trace(go.Histogram(x=results['physics_errors'], name='Physics',
-                               opacity=0.6, marker_color='red', nbinsx=30), row=1, col=2)
-    fig.add_trace(go.Histogram(x=results['hybrid_errors'], name='Hybrid',
-                               opacity=0.6, marker_color='dodgerblue', nbinsx=30), row=1, col=2)
-
-    # Cumulative
-    fig.add_trace(go.Scatter(x=time, y=np.cumsum(results['physics_errors']),
-                             name='Physics Cumul.', line=dict(color='red', width=2)), row=2, col=1)
-    fig.add_trace(go.Scatter(x=time, y=np.cumsum(results['hybrid_errors']),
-                             name='Hybrid Cumul.', line=dict(color='dodgerblue', width=2)), row=2, col=1)
-
-    # Improvement over time
+    t = np.arange(n) * 0.1
+    
+    fig = make_subplots(rows=2, cols=2, subplot_titles=('Error Over Time', 'Distribution', 'Cumulative', 'Improvement %'))
+    
+    fig.add_trace(go.Scatter(x=t, y=results['physics_errors'], name='Physics', line=dict(color='red')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=t, y=results['hybrid_errors'], name='Hybrid', line=dict(color='dodgerblue')), row=1, col=1)
+    
+    fig.add_trace(go.Histogram(x=results['physics_errors'], name='P', marker_color='red', opacity=0.6), row=1, col=2)
+    fig.add_trace(go.Histogram(x=results['hybrid_errors'], name='H', marker_color='dodgerblue', opacity=0.6), row=1, col=2)
+    
+    fig.add_trace(go.Scatter(x=t, y=np.cumsum(results['physics_errors']), name='P.Cum', line=dict(color='red')), row=2, col=1)
+    fig.add_trace(go.Scatter(x=t, y=np.cumsum(results['hybrid_errors']), name='H.Cum', line=dict(color='dodgerblue')), row=2, col=1)
+    
     pe = np.maximum(results['physics_errors'], 0.1)
-    imp = (pe - results['hybrid_errors']) / pe * 100
-    imp = np.clip(imp, -100, 100)
+    imp = np.clip((pe - results['hybrid_errors']) / pe * 100, -100, 100)
+    fig.add_trace(go.Scatter(x=t, y=imp, name='Imp%', fill='tozeroy', line=dict(color='lime')), row=2, col=2)
+    
+    fig.update_layout(height=500, template='plotly_dark')
+    return fig
 
-    fig.add_trace(go.Scatter(x=time, y=imp, name='Improvement %',
-                             line=dict(color='lime', width=2),
-                             fill='tozeroy', fillcolor='rgba(0,255,0,0.15)'), row=2, col=2)
-    fig.add_hline(y=0, line_dash='dash', line_color='gray', row=2, col=2)
 
-    fig.update_layout(height=550, template='plotly_dark', showlegend=True,
-                      title_text='📊 Error Analysis')
-
+def create_altitude_plot(results, scenario):
+    n = len(results['true_wind'])
+    t = np.arange(n) * 0.1
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=t, y=results['true_wind'][:, 2], name='Actual', line=dict(color='lime', width=3)))
+    fig.add_trace(go.Scatter(x=t, y=results['physics_preds'][:, 2], name='Physics', line=dict(color='red', width=2, dash='dash')))
+    fig.add_trace(go.Scatter(x=t, y=results['hybrid_preds'][:, 2], name='Hybrid', line=dict(color='dodgerblue', width=2)))
+    
+    fig.update_layout(title=f'📈 {scenario} - Altitude Profile', xaxis_title='Time (s)', 
+                      yaxis_title='Altitude (m)', height=350, template='plotly_dark')
     return fig
 
 
 # ============================================================
-# MAIN DASHBOARD
+# MAIN - FIXED METRICS DISPLAY
 # ============================================================
 
 def main():
     st.set_page_config(page_title="AI Aerial Tracking", page_icon="🛩️", layout="wide")
-
     st.title("🛩️ AI Aerial Tracking System")
-    st.caption("Hybrid Physics + ML Prediction with Multi-Sensor Fusion")
+    st.markdown("**Hybrid Physics + ML | 🔴 Physics Error vs 🔵 Hybrid Error**")
 
-    # ===== SIDEBAR =====
+    # Sidebar
     st.sidebar.header("⚙️ Settings")
-
-    scenario = st.sidebar.selectbox(
-        "🎯 Flight Scenario",
+    scenario = st.sidebar.selectbox("🎯 Scenario",
         ["Linear Flight", "High-Speed Turn", "Spiral Climb",
-         "Evasive Maneuvers", "Dive and Climb", "Figure-8 Pattern"],
-        index=2
-    )
+         "Evasive Maneuvers", "Dive and Climb", "Figure-8 Pattern"], index=2)
+    duration = st.sidebar.slider("⏱️ Duration", 30, 90, 60)
+    wind = st.sidebar.checkbox("🌬️ Wind Effects", True)
+    
+    if st.sidebar.button("🔄 Regenerate", type="primary"):
+        st.session_state.clear()
 
-    duration = st.sidebar.slider("⏱️ Duration (s)", 30, 90, 60)
-    enable_wind = st.sidebar.checkbox("🌬️ Wind Effects", value=True)
-
-    if st.sidebar.button("🔄 Regenerate Flight", type="primary"):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-
-    # ===== GENERATE DATA =====
-    need_regen = (
-        'scenario' not in st.session_state or
-        st.session_state.scenario != scenario or
-        'tdf' not in st.session_state or
-        st.session_state.get('duration') != duration or
-        st.session_state.get('wind') != enable_wind
-    )
-
-    if need_regen:
+    # Generate data
+    if ('scenario' not in st.session_state or st.session_state.get('scenario') != scenario
+        or st.session_state.get('duration') != duration or st.session_state.get('wind') != wind):
+        
         with st.spinner(f"Generating {scenario}..."):
             tdf, n_man = generate_scenario_trajectory(scenario, duration)
-
-            if enable_wind:
-                tdf_wind = add_wind_effects(tdf)
-            else:
-                tdf_wind = tdf.copy()
-
+            tdf_wind = add_wind_effects(tdf) if wind else tdf.copy()
             results = compute_predictions(tdf, tdf_wind)
+            st.session_state.update({'tdf_wind': tdf_wind, 'results': results,
+                                     'scenario': scenario, 'n_man': n_man,
+                                     'duration': duration, 'wind': wind})
 
-            st.session_state.tdf = tdf
-            st.session_state.tdf_wind = tdf_wind
-            st.session_state.results = results
-            st.session_state.scenario = scenario
-            st.session_state.n_man = n_man
-            st.session_state.duration = duration
-            st.session_state.wind = enable_wind
+    results = st.session_state['results']
+    tdf_wind = st.session_state['tdf_wind']
+    n_man = st.session_state['n_man']
 
-    tdf = st.session_state.tdf
-    tdf_wind = st.session_state.tdf_wind
-    results = st.session_state.results
-    n_man = st.session_state.n_man
-
-    # ===== METRICS ROW =====
+    # ================================================================
+    # METRICS - CLEAR DISPLAY
+    # ================================================================
     st.markdown("---")
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    col1.metric("🎯 Scenario", scenario)
-    col2.metric("📍 Maneuvers", n_man)
-    col3.metric("🔴 Physics RMSE", f"{results['physics_rmse']:.1f} m")
-    col4.metric("🔵 Hybrid RMSE", f"{results['hybrid_rmse']:.1f} m")
-    col5.metric("✅ Improvement", f"{results['improvement']:.1f}%")
-
+    
+    physics_rmse = results['physics_rmse']
+    hybrid_rmse = results['hybrid_rmse']
+    improvement = results['improvement']
+    error_reduction = physics_rmse - hybrid_rmse
+    
+    c1, c2, c3, c4, c5 = st.columns(5)
+    
+    c1.metric("🎯 Scenario", scenario)
+    c2.metric("📍 Maneuvers", n_man)
+    c3.metric("🔴 Physics RMSE", f"{physics_rmse:.1f} m")
+    c4.metric("🔵 Hybrid RMSE", f"{hybrid_rmse:.1f} m")
+    
+    # Clear improvement display
+    if improvement > 0:
+        c5.metric(
+            "✅ Improvement", 
+            f"{improvement:.1f}%",
+            delta=f"↓{error_reduction:.1f}m error reduction",
+            delta_color="normal"
+        )
+    else:
+        c5.metric(
+            "⚠️ Improvement", 
+            f"{improvement:.1f}%",
+            delta=f"↑{abs(error_reduction):.1f}m worse",
+            delta_color="inverse"
+        )
+    
+    # Status message
+    if wind:
+        if improvement > 20:
+            st.success(f"🎉 **Excellent!** Hybrid reduced error by **{error_reduction:.1f}m** ({improvement:.1f}% better)")
+        elif improvement > 5:
+            st.info(f"✅ **Good!** Hybrid reduced error by **{error_reduction:.1f}m** ({improvement:.1f}% improvement)")
+        elif improvement > 0:
+            st.warning(f"⚠️ **Marginal:** Only {improvement:.1f}% improvement. Wind pattern may be favorable for physics.")
+        else:
+            st.error(f"❌ **Issue:** Hybrid is {abs(improvement):.1f}% worse. This can happen with unfavorable sensor noise.")
+    else:
+        st.warning("⚠️ **Wind disabled:** Physics is nearly perfect without wind. Enable wind to see hybrid advantage!")
+    
     st.markdown("---")
 
-    # ===== TABS =====
-    tab1, tab2, tab3 = st.tabs(["📊 3D View", "🎬 Animation", "📈 Analysis"])
-
-    # TAB 1: 3D VIEW
-    with tab1:
-        st.subheader(f"🗺️ {scenario} - 3D Trajectory")
-
-        fig_3d = create_3d_plot(tdf_wind, results, scenario)
-        st.plotly_chart(fig_3d, use_container_width=True)
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            fig_2d = create_2d_topdown(tdf_wind, results, scenario)
-            st.plotly_chart(fig_2d, use_container_width=True)
-
-        with col2:
-            fig_alt = create_altitude_profile(tdf_wind, scenario)
-            st.plotly_chart(fig_alt, use_container_width=True)
-
-        st.info("""
-        **Legend:**
-        🟢 **Green** = Actual flight path (with wind) |
-        🔴 **Red dashed** = Physics prediction (no wind) |
-        🔵 **Blue** = Hybrid ML-corrected prediction
-        """)
-
-    # TAB 2: ANIMATION
-    with tab2:
-        st.subheader(f"🎬 {scenario} - Flight Animation")
-        st.info("Click **▶ Play** to start. Drag **slider** to scrub. Drag **plot** to rotate.")
-
-        fig_anim = create_animation(tdf_wind, results, scenario)
-        st.plotly_chart(fig_anim, use_container_width=True)
-
+    # Tabs
+    t1, t2, t3 = st.tabs(["📊 3D View", "🎬 Animation", "📈 Analysis"])
+    
+    with t1:
+        st.plotly_chart(create_3d_plot(tdf_wind, results, scenario), use_container_width=True, key="3d_main")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.plotly_chart(create_2d_plot(results, scenario), use_container_width=True, key="2d_topdown")
+        with c2:
+            st.plotly_chart(create_altitude_plot(results, scenario), use_container_width=True, key="altitude")
+    
+    with t2:
+        st.info("🔴 **Red line** = Physics error | 🔵 **Blue line** = Hybrid error | **Blue should be SHORTER!**")
+        st.plotly_chart(create_animation(tdf_wind, results, scenario), use_container_width=True, key="animation")
+        
         st.markdown("""
+        ### 📖 How to Read the Animation
         | Symbol | Meaning |
         |--------|---------|
-        | 🟢 Green line | Flight path trail |
-        | 🟡 Yellow diamond | Current aircraft position |
-        | 🟢 Green dot | Starting point |
+        | 🟢 **Green line** | Actual flight path (ground truth) |
+        | 🔴 **Red dashed line** | Physics prediction |
+        | 🔵 **Blue line** | Hybrid ML prediction |
+        | 🟡 **Yellow diamond** | Current aircraft position |
+        | 🔴 **Red error line** | Distance from physics to actual (should be LONG) |
+        | 🔵 **Blue error line** | Distance from hybrid to actual (should be SHORT) |
         """)
-
-    # TAB 3: ANALYSIS
-    with tab3:
-        st.subheader("📈 Performance Analysis")
-
-        fig_err = create_error_plots(results)
-        st.plotly_chart(fig_err, use_container_width=True)
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.markdown("### 🔴 Physics Model")
+    
+    with t3:
+        st.plotly_chart(create_error_plots(results), use_container_width=True, key="error_analysis")
+        
+        c1, c2 = st.columns(2)
+        with c1:
             st.markdown(f"""
+            ### 🔴 Physics Model
             | Metric | Value |
             |--------|-------|
-            | RMSE | {results['physics_rmse']:.2f} m |
-            | Mean Error | {results['physics_errors'].mean():.2f} m |
-            | Max Error | {results['physics_errors'].max():.2f} m |
-            | Min Error | {results['physics_errors'].min():.2f} m |
-            | Std Dev | {results['physics_errors'].std():.2f} m |
+            | **RMSE** | **{physics_rmse:.1f} m** |
+            | Mean Error | {results['physics_errors'].mean():.1f} m |
+            | Max Error | {results['physics_errors'].max():.1f} m |
+            | Min Error | {results['physics_errors'].min():.1f} m |
+            | Std Dev | {results['physics_errors'].std():.1f} m |
             """)
-
-        with col2:
-            st.markdown("### 🔵 Hybrid Model")
+        with c2:
             st.markdown(f"""
+            ### 🔵 Hybrid Model
             | Metric | Value |
             |--------|-------|
-            | RMSE | {results['hybrid_rmse']:.2f} m |
-            | Mean Error | {results['hybrid_errors'].mean():.2f} m |
-            | Max Error | {results['hybrid_errors'].max():.2f} m |
-            | Min Error | {results['hybrid_errors'].min():.2f} m |
-            | Std Dev | {results['hybrid_errors'].std():.2f} m |
+            | **RMSE** | **{hybrid_rmse:.1f} m** |
+            | Mean Error | {results['hybrid_errors'].mean():.1f} m |
+            | Max Error | {results['hybrid_errors'].max():.1f} m |
+            | Min Error | {results['hybrid_errors'].min():.1f} m |
+            | Std Dev | {results['hybrid_errors'].std():.1f} m |
             """)
-
-        st.success(f"""
-        ### ✅ Result
-        **Hybrid ML** achieved **{results['improvement']:.1f}% improvement** over physics-only.
-        Error reduced from **{results['physics_rmse']:.1f}m** → **{results['hybrid_rmse']:.1f}m**.
-        Applied **{results['corrections']}** corrections across the flight.
+        
+        st.markdown("### 📊 Summary")
+        st.markdown(f"""
+        | Metric | Physics | Hybrid | Difference |
+        |--------|---------|--------|------------|
+        | **RMSE** | {physics_rmse:.1f}m | {hybrid_rmse:.1f}m | **{error_reduction:+.1f}m** |
+        | **Improvement** | - | - | **{improvement:.1f}%** |
+        | **Corrections** | 0 | {results['corrections']} | - |
         """)
+        
+        if improvement > 0:
+            st.success(f"✅ **Hybrid wins!** {improvement:.1f}% better than physics-only ({error_reduction:.1f}m less error)")
+        else:
+            st.warning(f"⚠️ Physics performed better this run. Try regenerating or different scenario.")
 
-    # FOOTER
     st.markdown("---")
-    st.caption("AI-Based Multi-Sensor Fusion | Physics + ML Hybrid Tracking | Python, Streamlit, Plotly")
+    st.caption("🛩️ AI Aerial Tracking System | Built with Python, Streamlit, Plotly | 🔴 Physics | 🔵 Hybrid")
 
 
 if __name__ == "__main__":

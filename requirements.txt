@@ -20,4 +20,4 @@ tqdm>=4.62.0
 joblib>=1.1.0
 
 # NOT NEEDED FOR THIS PROJECT:
-# jupyter>=1.0.0  ← SKIP THIS
+# jupyter>=1.0.0  <- SKIP THIS
