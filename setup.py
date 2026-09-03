@@ -13,12 +13,12 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 setup(
     name="aerial-tracking-system",
     version="1.0.0",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Suraj Sharma",
+    author_email="modgilsooraj7@gmail.com",
     description="Hybrid Physics-ML Multi-Sensor Fusion for Aerial Object Tracking",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/aerial-tracking-system",
+    url="https://github.com/surajsharma-ai/aerial-tracking-system",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
